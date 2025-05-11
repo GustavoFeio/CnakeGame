@@ -1,7 +1,12 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <stdlib.h>
+#include <time.h>
 #include <SDL2/SDL.h>
+
+#define UNUSED(x) ((void)(x))
 
 #define defer_exit(n) \
 	do { \
@@ -11,106 +16,242 @@
 
 #define log_error(...) SDL_LogError(SDL_LOG_CATEGORY_ERROR, __VA_ARGS__)
 
-#define FPS 30
+// TODO: Use Ticks Per Second instead of FPS to update the game
+#define FPS 2
 #define FRAME_DELAY (1000 / FPS)
 
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
-
-#define RECT_SPEED 10
+#define GRID_WIDTH 40
+#define GRID_HEIGHT 30
+#define UNIT 20
+#define SNAKE_SIZE UNIT
+#define APPLE_SIZE UNIT
+#define SNAKE_INIT_LENGTH 5
+#define WINDOW_WIDTH (UNIT*GRID_WIDTH)
+#define WINDOW_HEIGHT (UNIT*GRID_HEIGHT)
 
 typedef struct {
-	SDL_Rect sdl_rect;
+	int x, y;
+} Vec2;
+
+typedef struct SnakeBody {
+	Vec2 body;
+	struct SnakeBody *next;
+} SnakeBody;
+
+typedef struct {
+	SnakeBody *tail;
+	SnakeBody *head;
 	int dx, dy;
-} Rect;
+} Snake;
 
-void update_rect(Rect *rect)
+typedef struct {
+	Vec2 apple;
+	Snake *snake;
+} Scene;
+
+typedef struct {
+	SDL_Window *window;
+	SDL_Renderer *renderer;
+	Scene *scene;
+	bool running;
+} Game;
+
+static const char *const WINDOW_TITLE = "Cnake Game";
+
+void init_snake(Scene *scene)
 {
-	int nx = rect->sdl_rect.x + RECT_SPEED*rect->dx;
-	if (nx < 0 || nx + rect->sdl_rect.w >= WINDOW_WIDTH) {
-		rect->dx *= -1;
-		nx = rect->sdl_rect.x + RECT_SPEED*rect->dx;
+	Snake *snake = malloc(sizeof(*snake));
+	SnakeBody *b = malloc(sizeof(*b));
+	b->body = (Vec2){ .x = 0, .y = 0 };
+	b->next = NULL;
+	snake->tail = b;
+	for (int i = 1; i < SNAKE_INIT_LENGTH; i++) {
+		SnakeBody *next = malloc(sizeof(*next));
+		next->body = (Vec2){ .x = i*UNIT, .y = 0 };
+		next->next = NULL;
+		b->next = next;
+		b = next;
 	}
-	rect->sdl_rect.x = nx;
+	snake->head = b;
+	snake->dx = 1;
+	snake->dy = 0;
 
-	int ny = rect->sdl_rect.y + RECT_SPEED*rect->dy;
-	if (ny < 0 || ny + rect->sdl_rect.h >= WINDOW_HEIGHT) {
-		rect->dy *= -1;
-		ny = rect->sdl_rect.y + RECT_SPEED*rect->dy;
+	scene->snake = snake;
+}
+
+bool intersects_snake(Snake *snake, SDL_Rect rect)
+{
+	SnakeBody *cur = snake->tail;
+	SDL_Rect snake_rect;
+	while (cur != NULL) {
+		snake_rect = (SDL_Rect) {
+			.x = cur->body.x,
+			.y = cur->body.y,
+			.w = UNIT,
+			.h = UNIT,
+		};
+		if (SDL_HasIntersection(&snake_rect, &rect)) return true;
+		cur = cur->next;
 	}
-	rect->sdl_rect.y = ny;
+	return false;
+}
+
+void new_apple(Scene *scene)
+{
+	SDL_Rect rect = {
+		.x = 0,
+		.y = 0,
+		.w = UNIT,
+		.h = UNIT,
+	};
+	do {
+		rect.x = round((rand() / (float) RAND_MAX) * (WINDOW_WIDTH - UNIT) / UNIT) * UNIT;
+		rect.y = round((rand() / (float) RAND_MAX) * (WINDOW_HEIGHT - UNIT) / UNIT) * UNIT;
+	} while (intersects_snake(scene->snake, rect));
+
+	scene->apple = (Vec2) { .x = rect.x, .y = rect.y };
+}
+
+void init_scene(Game *game)
+{
+	game->scene = malloc(sizeof(*game->scene));
+	init_snake(game->scene);
+	new_apple(game->scene);
+}
+
+bool init_game(Game *game)
+{
+	srand(time(NULL));
+	if (SDL_Init(SDL_INIT_VIDEO) < 0) return false;
+	if (SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0") == SDL_FALSE) return false;
+
+	game->window = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
+	if (game->window == NULL) return false;
+
+	game->renderer = SDL_CreateRenderer(game->window, -1, SDL_RENDERER_ACCELERATED);
+	if (game->renderer == NULL) return false;
+
+	init_scene(game);
+
+	game->running = true;
+
+	return true;
+}
+
+void handle_events(Game *game)
+{
+	SDL_Event e;
+	while (SDL_PollEvent(&e)) {
+		switch (e.type) {
+		case SDL_QUIT:
+			game->running = false;
+			break;
+		default:
+		}
+	}
+}
+
+void update_game(Game *game)
+{
+	UNUSED(game);
+}
+
+void render_snake(Game *game)
+{
+	SDL_SetRenderDrawColor(game->renderer, 0x18, 0xFF, 0x18, 0xFF);
+	Snake *snake = game->scene->snake;
+	SnakeBody *cur = snake->tail;
+	SDL_Rect rect;
+	while (cur != NULL) {
+		rect = (SDL_Rect) {
+			.x = cur->body.x,
+			.y = cur->body.y,
+			.w = SNAKE_SIZE,
+			.h = SNAKE_SIZE,
+		};
+		SDL_RenderFillRect(game->renderer, &rect);
+		cur = cur->next;
+	}
+}
+
+void render_apple(Game *game)
+{
+	SDL_SetRenderDrawColor(game->renderer, 0xFF, 0x18, 0x18, 0xFF);
+	SDL_Rect rect = {
+		.x = game->scene->apple.x,
+		.y = game->scene->apple.y,
+		.w = APPLE_SIZE,
+		.h = APPLE_SIZE,
+	};
+	SDL_RenderFillRect(game->renderer, &rect);
+}
+
+void render(Game *game)
+{
+	SDL_SetRenderDrawColor(game->renderer, 0x18, 0x18, 0x18, 0xFF);
+	SDL_RenderClear(game->renderer);
+	render_snake(game);
+	render_apple(game);
+	SDL_RenderPresent(game->renderer);
+}
+
+void free_snake(Snake *snake)
+{
+	SnakeBody *cur = snake->tail;
+	if (cur != NULL) {
+		SnakeBody *next = cur->next;
+		while (next != NULL) {
+			free(cur);
+			cur = next;
+			next = cur->next;
+		}
+		free(cur);
+	}
+	free(snake);
+}
+
+void free_scene(Scene *scene)
+{
+	free_snake(scene->snake);
+	free(scene);
+}
+
+void free_game(Game *game)
+{
+	free_scene(game->scene);
 }
 
 int main(void)
 {
 	int defer_ret_value = 0;
-	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-		log_error("Could not initialize SDL: %s", SDL_GetError());
+
+	Game game = {0};
+	if (!init_game(&game)) {
+		log_error("Could not initialize game: %s\n", SDL_GetError());
 		defer_exit(1);
 	}
-
-	if (SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0") == SDL_FALSE) {
-		log_error("Could not set hint: %s\n", SDL_GetError());
-		defer_exit(1);
-	}
-
-	const char *title = "Hello, from SDL!";
-	SDL_Window *window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
-	if (window == NULL) {
-		log_error("Could not create window: %s\n", SDL_GetError());
-		defer_exit(1);
-	}
-
-	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-	if (renderer == NULL) {
-		log_error("Could not create renderer: %s", SDL_GetError());
-		defer_exit(1);
-	}
-
-	Rect rect = {
-		(SDL_Rect) {
-			.x = 0,
-			.y = 0,
-			.w = 50,
-			.h = 50,
-		},
-		.dx = 1,
-		.dy = 1,
-	};
 
 	uint32_t frame_start;
-	bool quit = false;
 	do {
 		frame_start = SDL_GetTicks();
 
-		SDL_Event e;
-		while (SDL_PollEvent(&e)) {
-			switch (e.type) {
-			case SDL_QUIT:
-				quit = true;
-				break;
-			default:
-			}
-		}
+		handle_events(&game);
 
-		update_rect(&rect);
+		update_game(&game);
 
-		SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-		SDL_RenderClear(renderer);
-		SDL_SetRenderDrawColor(renderer, 0xFF, 0x0, 0x0, 0xFF);
-		SDL_RenderFillRect(renderer, &rect.sdl_rect);
-		SDL_RenderPresent(renderer);
+		render(&game);
 
 		int elapsed = FRAME_DELAY - (SDL_GetTicks() - frame_start);
 		if (elapsed > 0) {
 			SDL_Delay(elapsed);
 		}
-	} while (!quit);
+	} while (game.running);
 
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
+	SDL_DestroyRenderer(game.renderer);
+	SDL_DestroyWindow(game.window);
  
 defer:
+	free_game(&game);
 	SDL_Quit();
 	return defer_ret_value;
 }
