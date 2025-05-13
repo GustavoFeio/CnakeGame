@@ -17,7 +17,7 @@
 #define log_error(...) SDL_LogError(SDL_LOG_CATEGORY_ERROR, __VA_ARGS__)
 
 // TODO: Use Ticks Per Second instead of FPS to update the game
-#define FPS 2
+#define FPS 10
 #define FRAME_DELAY (1000 / FPS)
 
 #define GRID_WIDTH 40
@@ -34,7 +34,7 @@ typedef struct {
 } Vec2;
 
 typedef struct SnakeBody {
-	Vec2 body;
+	int x, y;
 	struct SnakeBody *next;
 } SnakeBody;
 
@@ -44,8 +44,10 @@ typedef struct {
 	int dx, dy;
 } Snake;
 
+typedef Vec2 Apple;
+
 typedef struct {
-	Vec2 apple;
+	Apple apple;
 	Snake *snake;
 } Scene;
 
@@ -54,6 +56,8 @@ typedef struct {
 	SDL_Renderer *renderer;
 	Scene *scene;
 	bool running;
+	bool gameover;
+	bool quit;
 } Game;
 
 static const char *const WINDOW_TITLE = "Cnake Game";
@@ -62,12 +66,12 @@ void init_snake(Scene *scene)
 {
 	Snake *snake = malloc(sizeof(*snake));
 	SnakeBody *b = malloc(sizeof(*b));
-	b->body = (Vec2){ .x = 0, .y = 0 };
-	b->next = NULL;
+	(*b) = (SnakeBody){0};
 	snake->tail = b;
 	for (int i = 1; i < SNAKE_INIT_LENGTH; i++) {
 		SnakeBody *next = malloc(sizeof(*next));
-		next->body = (Vec2){ .x = i*UNIT, .y = 0 };
+		next->x = i*UNIT;
+		next->y = 0;
 		next->next = NULL;
 		b->next = next;
 		b = next;
@@ -82,15 +86,8 @@ void init_snake(Scene *scene)
 bool intersects_snake(Snake *snake, SDL_Rect rect)
 {
 	SnakeBody *cur = snake->tail;
-	SDL_Rect snake_rect;
 	while (cur != NULL) {
-		snake_rect = (SDL_Rect) {
-			.x = cur->body.x,
-			.y = cur->body.y,
-			.w = UNIT,
-			.h = UNIT,
-		};
-		if (SDL_HasIntersection(&snake_rect, &rect)) return true;
+		if (cur->x == rect.x && cur->y == rect.y) return true;
 		cur = cur->next;
 	}
 	return false;
@@ -134,26 +131,78 @@ bool init_game(Game *game)
 	init_scene(game);
 
 	game->running = true;
+	game->gameover = false;
+	game->quit = false;
 
 	return true;
 }
 
-void handle_events(Game *game)
+void update_scene(Scene *scene)
 {
-	SDL_Event e;
-	while (SDL_PollEvent(&e)) {
-		switch (e.type) {
-		case SDL_QUIT:
-			game->running = false;
-			break;
-		default:
-		}
+	Snake *snake = scene->snake;
+	SnakeBody *tail = snake->tail;
+	SnakeBody *head = snake->head;
+	Vec2 old_tail = {
+		.x = tail->x,
+		.y = tail->y,
+	};
+	Vec2 old_head = {
+		.x = head->x,
+		.y = head->y,
+	};
+
+	snake->tail = tail->next;
+	tail->next = NULL;
+	head->next = tail;
+	snake->head = tail;
+	head = tail;
+
+	head->x = old_head.x + snake->dx*UNIT;
+	head->y = old_head.y + snake->dy*UNIT;
+
+	if (head->x == scene->apple.x && head->y == scene->apple.y) {
+		SnakeBody *new_tail = malloc(sizeof(*new_tail));
+		new_tail->x = old_tail.x;
+		new_tail->y = old_tail.y;
+		new_tail->next = snake->tail;
+		snake->tail = new_tail;
+		new_apple(scene);
+	}
+}
+
+bool out_of_bounds(Snake *snake)
+{
+	Vec2 head_pos = {
+		.x = snake->head->x,
+		.y = snake->head->y,
+	};
+	return head_pos.x >= WINDOW_WIDTH || head_pos.x < 0 || head_pos.y >= WINDOW_HEIGHT || head_pos.y < 0;
+}
+
+bool ouroboros(Snake *snake)
+{
+	SnakeBody *cur = snake->tail->next;
+	while (cur != snake->head) {
+		if (cur->x == snake->head->x && cur->y == snake->head->y) return true;
+		cur = cur->next;
+	}
+	return false;
+}
+
+void check_game_over(Game *game)
+{
+	Snake *snake = game->scene->snake;
+	if (ouroboros(snake) || out_of_bounds(snake)) {
+		game->gameover = true;
 	}
 }
 
 void update_game(Game *game)
 {
-	UNUSED(game);
+	if (game->running && !game->gameover) {
+		update_scene(game->scene);
+		check_game_over(game);
+	}
 }
 
 void render_snake(Game *game)
@@ -164,8 +213,8 @@ void render_snake(Game *game)
 	SDL_Rect rect;
 	while (cur != NULL) {
 		rect = (SDL_Rect) {
-			.x = cur->body.x,
-			.y = cur->body.y,
+			.x = cur->x,
+			.y = cur->y,
 			.w = SNAKE_SIZE,
 			.h = SNAKE_SIZE,
 		};
@@ -221,6 +270,72 @@ void free_game(Game *game)
 	free_scene(game->scene);
 }
 
+void reset_game_state(Game *game)
+{
+	// a bit scuffed freeing and reallocating the scene, but oh well
+	free_scene(game->scene);
+	init_scene(game);
+}
+
+void handle_keyboard_events(SDL_KeyboardEvent e, Game *game)
+{
+	switch (e.keysym.sym) {
+	case SDLK_UP:
+	case SDLK_w:
+		if (game->scene->snake->dy != 1) {
+			game->scene->snake->dy = -1;
+			game->scene->snake->dx = 0;
+		}
+		break;
+	case SDLK_DOWN:
+	case SDLK_s:
+		if (game->scene->snake->dy != -1) {
+			game->scene->snake->dy = 1;
+			game->scene->snake->dx = 0;
+		}
+		break;
+	case SDLK_LEFT:
+	case SDLK_a:
+		if (game->scene->snake->dx != 1) {
+			game->scene->snake->dx = -1;
+			game->scene->snake->dy = 0;
+		}
+		break;
+	case SDLK_RIGHT:
+	case SDLK_d:
+		if (game->scene->snake->dx != -1) {
+			game->scene->snake->dx = 1;
+			game->scene->snake->dy = 0;
+		}
+		break;
+	case SDLK_SPACE:
+		if (game->gameover) {
+			reset_game_state(game);
+			game->gameover = false;
+			game->running = true;
+		} else {
+			game->running = !game->running;
+		}
+	default:
+	}
+}
+
+void handle_events(Game *game)
+{
+	SDL_Event e;
+	while (SDL_PollEvent(&e)) {
+		switch (e.type) {
+		case SDL_QUIT:
+			game->quit = true;
+			break;
+		case SDL_KEYDOWN:
+			handle_keyboard_events(e.key, game);
+			break;
+		default:
+		}
+	}
+}
+
 int main(void)
 {
 	int defer_ret_value = 0;
@@ -245,7 +360,7 @@ int main(void)
 		if (elapsed > 0) {
 			SDL_Delay(elapsed);
 		}
-	} while (game.running);
+	} while (!game.quit);
 
 	SDL_DestroyRenderer(game.renderer);
 	SDL_DestroyWindow(game.window);
