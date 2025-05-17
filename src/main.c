@@ -204,9 +204,11 @@ void check_game_over(Game *game)
 void update_game(Game *game)
 {
 	if (game->running && !game->gameover) {
+		// TODO: if the game is running we update, else we present a pause screen
 		update_scene(game->scene);
 		check_game_over(game);
 	}
+	// TODO: if the player lost the game present a game over screen
 }
 
 void render_snake(Game *game)
@@ -286,9 +288,11 @@ void free_game(Game *game)
 
 void reset_game_state(Game *game)
 {
-	// a bit scuffed freeing and reallocating the scene, but oh well
-	free_scene(game->scene);
-	init_scene(game);
+	free_snake(game->scene->snake);
+	game->scene->snake = new_snake();
+	game->scene->apple = new_apple(game->scene);
+	game->gameover = false;
+	game->running = true;
 }
 
 void handle_keyboard_events(SDL_KeyboardEvent e, Game *game)
@@ -329,8 +333,6 @@ void handle_keyboard_events(SDL_KeyboardEvent e, Game *game)
 	case SDLK_SPACE:
 		if (game->gameover) {
 			reset_game_state(game);
-			game->gameover = false;
-			game->running = true;
 		} else {
 			game->running = !game->running;
 		}
