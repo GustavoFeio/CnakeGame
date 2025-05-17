@@ -1,6 +1,8 @@
 
 This is an implementation of the classic snake game in C, using SDL2.
 
+![](assets/cnake_game_preview.png)
+
 *Disclaimer*: This was developed fully in a Linux environment. Do not expect it to work on Windows.
 
 # Building
