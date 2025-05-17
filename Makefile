@@ -1,7 +1,7 @@
 
 CC=cc
 
-FLAGS=`sdl2-config --cflags --libs` -g -lm -Wall -Wextra -pedantic -std=c2x
+FLAGS=`sdl2-config --cflags --libs` -g -lm -Wall -Wextra -pedantic -std=c99
 
 SRC=./src/
 BIN=./bin/

@@ -64,30 +64,34 @@ typedef struct {
 
 static const char *const WINDOW_TITLE = "Cnake Game";
 
-void init_snake(Scene *scene)
+SnakeBody *new_snake_body(int x, int y)
 {
-	Snake *snake = malloc(sizeof(*snake));
+	SnakeBody *b = calloc(1, sizeof(*b));
+	b->x = x;
+	b->y = y;
+	return b;
+}
+
+Snake *new_snake()
+{
+	Snake *snake = calloc(1, sizeof(*snake));
 	snake->dx = 1;
 	snake->dy = 0;
 	snake->dir_changed = false;
 	snake->size = SNAKE_INIT_LENGTH;
 
-	SnakeBody *b = calloc(1, sizeof(*b));
+	SnakeBody *b = new_snake_body(0, 0);
 	snake->tail = b;
 	for (size_t i = 1; i < snake->size; i++) {
-		SnakeBody *next = malloc(sizeof(*next));
-		next->x = i*UNIT;
-		next->y = 0;
-		next->next = NULL;
+		SnakeBody *next = new_snake_body(i, 0);
 		b->next = next;
 		b = next;
 	}
 	snake->head = b;
-
-	scene->snake = snake;
+	return snake;
 }
 
-bool intersects_snake(Snake *snake, SDL_Rect rect)
+bool intersects_snake(Snake *snake, Vec2 rect)
 {
 	SnakeBody *cur = snake->tail;
 	while (cur != NULL) {
@@ -97,27 +101,21 @@ bool intersects_snake(Snake *snake, SDL_Rect rect)
 	return false;
 }
 
-void new_apple(Scene *scene)
+Apple new_apple(Scene *scene)
 {
-	SDL_Rect rect = {
-		.x = 0,
-		.y = 0,
-		.w = UNIT,
-		.h = UNIT,
-	};
+	Apple apple;
 	do {
-		rect.x = round((rand() / (float) RAND_MAX) * (WINDOW_WIDTH - UNIT) / UNIT) * UNIT;
-		rect.y = round((rand() / (float) RAND_MAX) * (WINDOW_HEIGHT - UNIT) / UNIT) * UNIT;
-	} while (intersects_snake(scene->snake, rect));
-
-	scene->apple = (Vec2) { .x = rect.x, .y = rect.y };
+		apple.x = (rand() / (double) RAND_MAX) * (GRID_WIDTH - 1);
+		apple.y = (rand() / (double) RAND_MAX) * (GRID_HEIGHT - 1);
+	} while (intersects_snake(scene->snake, apple));
+	return apple;
 }
 
 void init_scene(Game *game)
 {
-	game->scene = malloc(sizeof(*game->scene));
-	init_snake(game->scene);
-	new_apple(game->scene);
+	game->scene = calloc(1, sizeof(*game->scene));
+	game->scene->snake = new_snake();
+	game->scene->apple = new_apple(game->scene);
 }
 
 bool init_game(Game *game)
@@ -161,17 +159,15 @@ void update_scene(Scene *scene)
 	snake->head = tail;
 	head = tail;
 
-	head->x = old_head.x + snake->dx*UNIT;
-	head->y = old_head.y + snake->dy*UNIT;
+	head->x = old_head.x + snake->dx;
+	head->y = old_head.y + snake->dy;
 
 	if (head->x == scene->apple.x && head->y == scene->apple.y) {
-		SnakeBody *new_tail = malloc(sizeof(*new_tail));
-		new_tail->x = old_tail.x;
-		new_tail->y = old_tail.y;
+		SnakeBody *new_tail = new_snake_body(old_tail.x, old_tail.y);
 		new_tail->next = snake->tail;
 		snake->tail = new_tail;
 		snake->size += 1;
-		new_apple(scene);
+		scene->apple = new_apple(scene);
 	}
 	snake->dir_changed = false;
 }
@@ -182,14 +178,16 @@ bool out_of_bounds(Snake *snake)
 		.x = snake->head->x,
 		.y = snake->head->y,
 	};
-	return head_pos.x >= WINDOW_WIDTH || head_pos.x < 0 || head_pos.y >= WINDOW_HEIGHT || head_pos.y < 0;
+	return head_pos.x >= GRID_WIDTH || head_pos.x < 0 || head_pos.y >= GRID_HEIGHT || head_pos.y < 0;
 }
 
 bool ouroboros(Snake *snake)
 {
-	SnakeBody *cur = snake->tail->next;
+	int head_x = snake->head->x;
+	int head_y = snake->head->y;
+	SnakeBody *cur = snake->tail;
 	while (cur != snake->head) {
-		if (cur->x == snake->head->x && cur->y == snake->head->y) return true;
+		if (cur->x == head_x && cur->y == head_y) return true;
 		cur = cur->next;
 	}
 	return false;
@@ -220,8 +218,8 @@ void render_snake(Game *game)
 	size_t i = 0;
 	while (i < snake->size - 1 && cur != NULL) {
 		rect = (SDL_Rect) {
-			.x = cur->x,
-			.y = cur->y,
+			.x = cur->x*UNIT,
+			.y = cur->y*UNIT,
 			.w = SNAKE_SIZE,
 			.h = SNAKE_SIZE,
 		};
@@ -230,8 +228,8 @@ void render_snake(Game *game)
 		i++;
 	}
 	rect = (SDL_Rect) {
-		.x = snake->head->x,
-		.y = snake->head->y,
+		.x = snake->head->x*UNIT,
+		.y = snake->head->y*UNIT,
 		.w = SNAKE_SIZE,
 		.h = SNAKE_SIZE,
 	};
@@ -243,8 +241,8 @@ void render_apple(Game *game)
 {
 	SDL_SetRenderDrawColor(game->renderer, 0xFF, 0x18, 0x18, 0xFF);
 	SDL_Rect rect = {
-		.x = game->scene->apple.x,
-		.y = game->scene->apple.y,
+		.x = game->scene->apple.x * UNIT,
+		.y = game->scene->apple.y * UNIT,
 		.w = APPLE_SIZE,
 		.h = APPLE_SIZE,
 	};
@@ -336,7 +334,6 @@ void handle_keyboard_events(SDL_KeyboardEvent e, Game *game)
 		} else {
 			game->running = !game->running;
 		}
-	default:
 	}
 }
 
@@ -351,7 +348,6 @@ void handle_events(Game *game)
 		case SDL_KEYDOWN:
 			handle_keyboard_events(e.key, game);
 			break;
-		default:
 		}
 	}
 }
