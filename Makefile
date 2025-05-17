@@ -6,7 +6,7 @@ FLAGS=`sdl2-config --cflags --libs` -g -lm -Wall -Wextra -pedantic -std=c2x
 SRC=./src/
 BIN=./bin/
 
-EXE=snake_game
+EXE=cnake_game
 
 all: $(EXE)
 

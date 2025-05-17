@@ -34,21 +34,23 @@ typedef struct {
 } Vec2;
 
 typedef struct SnakeBody {
-	int x, y;
 	struct SnakeBody *next;
+	int x, y;
 } SnakeBody;
 
 typedef struct {
 	SnakeBody *tail;
 	SnakeBody *head;
+	size_t size;
 	int dx, dy;
+	bool dir_changed;
 } Snake;
 
 typedef Vec2 Apple;
 
 typedef struct {
-	Apple apple;
 	Snake *snake;
+	Apple apple;
 } Scene;
 
 typedef struct {
@@ -65,10 +67,14 @@ static const char *const WINDOW_TITLE = "Cnake Game";
 void init_snake(Scene *scene)
 {
 	Snake *snake = malloc(sizeof(*snake));
-	SnakeBody *b = malloc(sizeof(*b));
-	(*b) = (SnakeBody){0};
+	snake->dx = 1;
+	snake->dy = 0;
+	snake->dir_changed = false;
+	snake->size = SNAKE_INIT_LENGTH;
+
+	SnakeBody *b = calloc(1, sizeof(*b));
 	snake->tail = b;
-	for (int i = 1; i < SNAKE_INIT_LENGTH; i++) {
+	for (size_t i = 1; i < snake->size; i++) {
 		SnakeBody *next = malloc(sizeof(*next));
 		next->x = i*UNIT;
 		next->y = 0;
@@ -77,8 +83,6 @@ void init_snake(Scene *scene)
 		b = next;
 	}
 	snake->head = b;
-	snake->dx = 1;
-	snake->dy = 0;
 
 	scene->snake = snake;
 }
@@ -166,8 +170,10 @@ void update_scene(Scene *scene)
 		new_tail->y = old_tail.y;
 		new_tail->next = snake->tail;
 		snake->tail = new_tail;
+		snake->size += 1;
 		new_apple(scene);
 	}
+	snake->dir_changed = false;
 }
 
 bool out_of_bounds(Snake *snake)
@@ -211,7 +217,8 @@ void render_snake(Game *game)
 	Snake *snake = game->scene->snake;
 	SnakeBody *cur = snake->tail;
 	SDL_Rect rect;
-	while (cur != NULL) {
+	size_t i = 0;
+	while (i < snake->size - 1 && cur != NULL) {
 		rect = (SDL_Rect) {
 			.x = cur->x,
 			.y = cur->y,
@@ -220,7 +227,16 @@ void render_snake(Game *game)
 		};
 		SDL_RenderFillRect(game->renderer, &rect);
 		cur = cur->next;
+		i++;
 	}
+	rect = (SDL_Rect) {
+		.x = snake->head->x,
+		.y = snake->head->y,
+		.w = SNAKE_SIZE,
+		.h = SNAKE_SIZE,
+	};
+	SDL_SetRenderDrawColor(game->renderer, 0x90, 0xFF, 0x90, 0xFF);
+	SDL_RenderFillRect(game->renderer, &rect);
 }
 
 void render_apple(Game *game)
@@ -282,30 +298,34 @@ void handle_keyboard_events(SDL_KeyboardEvent e, Game *game)
 	switch (e.keysym.sym) {
 	case SDLK_UP:
 	case SDLK_w:
-		if (game->scene->snake->dy != 1) {
+		if (!game->scene->snake->dir_changed && game->scene->snake->dy == 0) {
 			game->scene->snake->dy = -1;
 			game->scene->snake->dx = 0;
+			game->scene->snake->dir_changed = true;
 		}
 		break;
 	case SDLK_DOWN:
 	case SDLK_s:
-		if (game->scene->snake->dy != -1) {
+		if (!game->scene->snake->dir_changed && game->scene->snake->dy == 0) {
 			game->scene->snake->dy = 1;
 			game->scene->snake->dx = 0;
+			game->scene->snake->dir_changed = true;
 		}
 		break;
 	case SDLK_LEFT:
 	case SDLK_a:
-		if (game->scene->snake->dx != 1) {
+		if (!game->scene->snake->dir_changed && game->scene->snake->dx == 0) {
 			game->scene->snake->dx = -1;
 			game->scene->snake->dy = 0;
+			game->scene->snake->dir_changed = true;
 		}
 		break;
 	case SDLK_RIGHT:
 	case SDLK_d:
-		if (game->scene->snake->dx != -1) {
+		if (!game->scene->snake->dir_changed && game->scene->snake->dx == 0) {
 			game->scene->snake->dx = 1;
 			game->scene->snake->dy = 0;
+			game->scene->snake->dir_changed = true;
 		}
 		break;
 	case SDLK_SPACE:
