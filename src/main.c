@@ -22,10 +22,14 @@
 
 #define GRID_WIDTH 40
 #define GRID_HEIGHT 30
-#define UNIT 20
+#define UNIT 25
+
 #define SNAKE_SIZE UNIT
 #define APPLE_SIZE UNIT
+
+// Pre: do not set initial snake length to 1
 #define SNAKE_INIT_LENGTH 5
+
 #define WINDOW_WIDTH (UNIT*GRID_WIDTH)
 #define WINDOW_HEIGHT (UNIT*GRID_HEIGHT)
 
@@ -80,10 +84,11 @@ Snake *new_snake()
 	snake->dir_changed = false;
 	snake->size = SNAKE_INIT_LENGTH;
 
-	SnakeBody *b = new_snake_body(0, 0);
+	// We update the game once before rendering, so we start at -1
+	SnakeBody *b = new_snake_body(-1, 0);
 	snake->tail = b;
 	for (size_t i = 1; i < snake->size; i++) {
-		SnakeBody *next = new_snake_body(i, 0);
+		SnakeBody *next = new_snake_body(i-1, 0);
 		b->next = next;
 		b = next;
 	}
@@ -216,25 +221,19 @@ void render_snake(Game *game)
 	SDL_SetRenderDrawColor(game->renderer, 0x18, 0xFF, 0x18, 0xFF);
 	Snake *snake = game->scene->snake;
 	SnakeBody *cur = snake->tail;
-	SDL_Rect rect;
-	size_t i = 0;
-	while (i < snake->size - 1 && cur != NULL) {
-		rect = (SDL_Rect) {
-			.x = cur->x*UNIT,
-			.y = cur->y*UNIT,
-			.w = SNAKE_SIZE,
-			.h = SNAKE_SIZE,
-		};
-		SDL_RenderFillRect(game->renderer, &rect);
-		cur = cur->next;
-		i++;
-	}
-	rect = (SDL_Rect) {
-		.x = snake->head->x*UNIT,
-		.y = snake->head->y*UNIT,
+	SDL_Rect rect = {
 		.w = SNAKE_SIZE,
 		.h = SNAKE_SIZE,
 	};
+	while (cur != snake->head) {
+		rect.x = cur->x*UNIT;
+		rect.y = cur->y*UNIT;
+		SDL_RenderFillRect(game->renderer, &rect);
+		cur = cur->next;
+	}
+
+	rect.x = snake->head->x*UNIT;
+	rect.y = snake->head->y*UNIT;
 	SDL_SetRenderDrawColor(game->renderer, 0x90, 0xFF, 0x90, 0xFF);
 	SDL_RenderFillRect(game->renderer, &rect);
 }
