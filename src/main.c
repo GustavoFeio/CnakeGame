@@ -363,7 +363,7 @@ void handle_keyboard_events(SDL_KeyboardEvent e, Game *game)
 	switch (e.keysym.sym) {
 	case SDLK_UP:
 	case SDLK_w:
-		if (!game->scene->snake->dir_changed && game->scene->snake->dy == 0) {
+		if (game->running && !game->scene->snake->dir_changed && game->scene->snake->dy == 0) {
 			game->scene->snake->dy = -1;
 			game->scene->snake->dx = 0;
 			game->scene->snake->dir_changed = true;
@@ -371,7 +371,7 @@ void handle_keyboard_events(SDL_KeyboardEvent e, Game *game)
 		break;
 	case SDLK_DOWN:
 	case SDLK_s:
-		if (!game->scene->snake->dir_changed && game->scene->snake->dy == 0) {
+		if (game->running && !game->scene->snake->dir_changed && game->scene->snake->dy == 0) {
 			game->scene->snake->dy = 1;
 			game->scene->snake->dx = 0;
 			game->scene->snake->dir_changed = true;
@@ -379,7 +379,7 @@ void handle_keyboard_events(SDL_KeyboardEvent e, Game *game)
 		break;
 	case SDLK_LEFT:
 	case SDLK_a:
-		if (!game->scene->snake->dir_changed && game->scene->snake->dx == 0) {
+		if (game->running && !game->scene->snake->dir_changed && game->scene->snake->dx == 0) {
 			game->scene->snake->dx = -1;
 			game->scene->snake->dy = 0;
 			game->scene->snake->dir_changed = true;
@@ -387,7 +387,7 @@ void handle_keyboard_events(SDL_KeyboardEvent e, Game *game)
 		break;
 	case SDLK_RIGHT:
 	case SDLK_d:
-		if (!game->scene->snake->dir_changed && game->scene->snake->dx == 0) {
+		if (game->running && !game->scene->snake->dir_changed && game->scene->snake->dx == 0) {
 			game->scene->snake->dx = 1;
 			game->scene->snake->dy = 0;
 			game->scene->snake->dir_changed = true;
