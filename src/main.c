@@ -1,7 +1,7 @@
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <stdlib.h>
 #include <stdlib.h>
 #include <time.h>
 #include <SDL2/SDL.h>
@@ -22,12 +22,12 @@
 
 #define GRID_WIDTH 40
 #define GRID_HEIGHT 30
-#define UNIT 25
+#define UNIT 30
 
 #define SNAKE_SIZE UNIT
 #define APPLE_SIZE UNIT
 
-// Pre: do not set initial snake length to 1
+// Pre: initial snake length must be >= 3
 #define SNAKE_INIT_LENGTH 5
 
 #define WINDOW_WIDTH (UNIT*GRID_WIDTH)
@@ -218,22 +218,86 @@ void update_game(Game *game)
 
 void render_snake(Game *game)
 {
-	SDL_SetRenderDrawColor(game->renderer, 0x18, 0xFF, 0x18, 0xFF);
 	Snake *snake = game->scene->snake;
 	SnakeBody *cur = snake->tail;
+	SnakeBody *next = cur->next;
+	SnakeBody *previous;
 	SDL_Rect rect = {
+		.x = cur->x * UNIT,
+		.y = cur->y * UNIT,
 		.w = SNAKE_SIZE,
 		.h = SNAKE_SIZE,
 	};
-	while (cur != snake->head) {
-		rect.x = cur->x*UNIT;
-		rect.y = cur->y*UNIT;
-		SDL_RenderFillRect(game->renderer, &rect);
-		cur = cur->next;
-	}
 
-	rect.x = snake->head->x*UNIT;
-	rect.y = snake->head->y*UNIT;
+	SDL_SetRenderDrawColor(game->renderer, 0x18, 0xFF, 0x18, 0xFF);
+	if (cur->x == next->x) {
+		rect.w -= 2;
+		rect.x += 1;
+	} else {
+		rect.h -= 2;
+		rect.y += 1;
+	}
+	SDL_RenderFillRect(game->renderer, &rect);
+
+	do {
+		previous = cur;
+		cur = next;
+		next = cur->next;
+
+		rect = (SDL_Rect) {
+			.x = cur->x*UNIT,
+			.y = cur->y*UNIT,
+			.w = SNAKE_SIZE,
+			.h = SNAKE_SIZE,
+		};
+
+		SDL_SetRenderDrawColor(game->renderer, 0x18, 0xFF, 0x18, 0xFF);
+		if (cur->x == next->x) { // same column
+			if (previous->x == cur->x) { // straight line
+				rect.w -= 2;
+				rect.x += 1;
+			} else { // bending
+				rect.w -= 1;
+				rect.h -= 1;
+				if (cur->y < next->y) // going down
+					rect.y += 1;
+				if (previous->x > cur->x) // from the right
+					rect.x += 1;
+			}
+		} else { // same row
+			if (previous->y == cur->y) { // straight line
+				rect.h -= 2;
+				rect.y += 1;
+			} else { // bending
+				rect.w -= 1;
+				rect.h -= 1;
+				if (cur->x < next->x) // going right
+					rect.x += 1;
+				if (previous->y > cur->y) // from the bottom
+					rect.y += 1;
+			}
+		}
+		SDL_RenderFillRect(game->renderer, &rect);
+	} while (next != snake->head);
+
+	previous = cur;
+	cur = next;
+
+	rect = (SDL_Rect) {
+		.x = snake->head->x*UNIT,
+		.y = snake->head->y*UNIT,
+		.w = SNAKE_SIZE - 1,
+		.h = SNAKE_SIZE - 1,
+	};
+	if (previous->x == cur->x) { // same column
+		rect.w -= 1;
+		rect.x += 1;
+		if (previous->y > cur->y) rect.y += 1;
+	} else { // same row
+		rect.h -= 1;
+		rect.y += 1;
+		if (previous->x > cur->x) rect.x += 1;
+	}
 	SDL_SetRenderDrawColor(game->renderer, 0x90, 0xFF, 0x90, 0xFF);
 	SDL_RenderFillRect(game->renderer, &rect);
 }
