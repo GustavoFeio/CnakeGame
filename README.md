@@ -1,12 +1,12 @@
 
-This is an implementation of the classic snake game in C, using SDL2.
+This is an implementation of the classic snake game in C, using Raylib.
 
 ![](assets/cnake_game_preview.png)
 
 *Disclaimer*: This was developed fully in a Linux environment. Do not expect it to work on other platforms.
 
 # Building
-Make sure you have [SDL2](https://wiki.libsdl.org/SDL2/FrontPage) installed and can run the command `sdl2-config`.
+Make sure you have [Raylib](https://github.com/raysan5/raylib) installed.
 
 Go to the project root directory and run:
 ```sh

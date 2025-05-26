@@ -1,10 +1,11 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>
-#include <SDL2/SDL.h>
+#include <raylib.h>
 
 #define UNUSED(x) ((void)(x))
 
@@ -14,14 +15,13 @@
 		goto defer; \
 	} while (0)
 
-#define log_error(...) SDL_LogError(SDL_LOG_CATEGORY_ERROR, __VA_ARGS__)
+#define FPS 60
 
-// TODO: Use Ticks Per Second instead of FPS to update the game
-#define FPS 10
-#define FRAME_DELAY (1000 / FPS)
+#define TPS 10
+#define TICK_DELAY (1.0 / TPS)
 
-#define GRID_WIDTH 40
-#define GRID_HEIGHT 30
+#define GRID_WIDTH 30
+#define GRID_HEIGHT 20
 #define UNIT 30
 
 #define SNAKE_SIZE UNIT
@@ -58,8 +58,6 @@ typedef struct {
 } Scene;
 
 typedef struct {
-	SDL_Window *window;
-	SDL_Renderer *renderer;
 	Scene *scene;
 	bool running;
 	bool gameover;
@@ -126,14 +124,9 @@ void init_scene(Game *game)
 bool init_game(Game *game)
 {
 	srand(time(NULL));
-	if (SDL_Init(SDL_INIT_VIDEO) < 0) return false;
-	if (SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0") == SDL_FALSE) return false;
 
-	game->window = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
-	if (game->window == NULL) return false;
-
-	game->renderer = SDL_CreateRenderer(game->window, -1, SDL_RENDERER_ACCELERATED);
-	if (game->renderer == NULL) return false;
+	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE);
+	SetTargetFPS(FPS);
 
 	init_scene(game);
 
@@ -222,43 +215,42 @@ void render_snake(Game *game)
 	SnakeBody *cur = snake->tail;
 	SnakeBody *next = cur->next;
 	SnakeBody *previous;
-	SDL_Rect rect = {
+	Rectangle rect = {
 		.x = cur->x * UNIT,
 		.y = cur->y * UNIT,
-		.w = SNAKE_SIZE,
-		.h = SNAKE_SIZE,
+		.width = SNAKE_SIZE,
+		.height = SNAKE_SIZE,
 	};
 
-	SDL_SetRenderDrawColor(game->renderer, 0x18, 0xFF, 0x18, 0xFF);
+	Color body_color = GetColor(0x18FF18FF);
 	if (cur->x == next->x) {
-		rect.w -= 2;
+		rect.width -= 2;
 		rect.x += 1;
 	} else {
-		rect.h -= 2;
+		rect.height -= 2;
 		rect.y += 1;
 	}
-	SDL_RenderFillRect(game->renderer, &rect);
+	DrawRectangleRec(rect, body_color);
 
 	do {
 		previous = cur;
 		cur = next;
 		next = cur->next;
 
-		rect = (SDL_Rect) {
+		rect = (Rectangle) {
 			.x = cur->x*UNIT,
 			.y = cur->y*UNIT,
-			.w = SNAKE_SIZE,
-			.h = SNAKE_SIZE,
+			.width = SNAKE_SIZE,
+			.height = SNAKE_SIZE,
 		};
 
-		SDL_SetRenderDrawColor(game->renderer, 0x18, 0xFF, 0x18, 0xFF);
 		if (cur->x == next->x) { // same column
 			if (previous->x == cur->x) { // straight line
-				rect.w -= 2;
+				rect.width -= 2;
 				rect.x += 1;
 			} else { // bending
-				rect.w -= 1;
-				rect.h -= 1;
+				rect.width -= 1;
+				rect.height -= 1;
 				if (cur->y < next->y) // going down
 					rect.y += 1;
 				if (previous->x > cur->x) // from the right
@@ -266,61 +258,61 @@ void render_snake(Game *game)
 			}
 		} else { // same row
 			if (previous->y == cur->y) { // straight line
-				rect.h -= 2;
+				rect.height -= 2;
 				rect.y += 1;
 			} else { // bending
-				rect.w -= 1;
-				rect.h -= 1;
+				rect.width -= 1;
+				rect.height -= 1;
 				if (cur->x < next->x) // going right
 					rect.x += 1;
 				if (previous->y > cur->y) // from the bottom
 					rect.y += 1;
 			}
 		}
-		SDL_RenderFillRect(game->renderer, &rect);
+		DrawRectangleRec(rect, body_color);
 	} while (next != snake->head);
 
 	previous = cur;
 	cur = next;
 
-	rect = (SDL_Rect) {
+	rect = (Rectangle) {
 		.x = snake->head->x*UNIT,
 		.y = snake->head->y*UNIT,
-		.w = SNAKE_SIZE - 1,
-		.h = SNAKE_SIZE - 1,
+		.width = SNAKE_SIZE - 1,
+		.height = SNAKE_SIZE - 1,
 	};
 	if (previous->x == cur->x) { // same column
-		rect.w -= 1;
+		rect.width -= 1;
 		rect.x += 1;
 		if (previous->y > cur->y) rect.y += 1;
 	} else { // same row
-		rect.h -= 1;
+		rect.height -= 1;
 		rect.y += 1;
 		if (previous->x > cur->x) rect.x += 1;
 	}
-	SDL_SetRenderDrawColor(game->renderer, 0x90, 0xFF, 0x90, 0xFF);
-	SDL_RenderFillRect(game->renderer, &rect);
+	Color head_color = GetColor(0x90FF90FF);
+	DrawRectangleRec(rect, head_color);
 }
 
 void render_apple(Game *game)
 {
-	SDL_SetRenderDrawColor(game->renderer, 0xFF, 0x18, 0x18, 0xFF);
-	SDL_Rect rect = {
+	Color apple_color = GetColor(0xFF1818FF);
+	Rectangle rect = {
 		.x = game->scene->apple.x * UNIT,
 		.y = game->scene->apple.y * UNIT,
-		.w = APPLE_SIZE,
-		.h = APPLE_SIZE,
+		.width = APPLE_SIZE,
+		.height = APPLE_SIZE,
 	};
-	SDL_RenderFillRect(game->renderer, &rect);
+	DrawRectangleRec(rect, apple_color);
 }
 
 void render(Game *game)
 {
-	SDL_SetRenderDrawColor(game->renderer, 0x18, 0x18, 0x18, 0xFF);
-	SDL_RenderClear(game->renderer);
-	render_snake(game);
-	render_apple(game);
-	SDL_RenderPresent(game->renderer);
+	BeginDrawing();
+		ClearBackground(GetColor(0x181818FF));
+		render_snake(game);
+		render_apple(game);
+	EndDrawing();
 }
 
 void free_snake(Snake *snake)
@@ -358,62 +350,61 @@ void reset_game_state(Game *game)
 	game->running = true;
 }
 
-void handle_keyboard_events(SDL_KeyboardEvent e, Game *game)
+void handle_keyboard_events(Game *game)
 {
-	switch (e.keysym.sym) {
-	case SDLK_UP:
-	case SDLK_w:
-		if (game->running && !game->scene->snake->dir_changed && game->scene->snake->dy == 0) {
-			game->scene->snake->dy = -1;
-			game->scene->snake->dx = 0;
-			game->scene->snake->dir_changed = true;
-		}
-		break;
-	case SDLK_DOWN:
-	case SDLK_s:
-		if (game->running && !game->scene->snake->dir_changed && game->scene->snake->dy == 0) {
-			game->scene->snake->dy = 1;
-			game->scene->snake->dx = 0;
-			game->scene->snake->dir_changed = true;
-		}
-		break;
-	case SDLK_LEFT:
-	case SDLK_a:
-		if (game->running && !game->scene->snake->dir_changed && game->scene->snake->dx == 0) {
-			game->scene->snake->dx = -1;
-			game->scene->snake->dy = 0;
-			game->scene->snake->dir_changed = true;
-		}
-		break;
-	case SDLK_RIGHT:
-	case SDLK_d:
-		if (game->running && !game->scene->snake->dir_changed && game->scene->snake->dx == 0) {
-			game->scene->snake->dx = 1;
-			game->scene->snake->dy = 0;
-			game->scene->snake->dir_changed = true;
-		}
-		break;
-	case SDLK_SPACE:
-		if (game->gameover) {
-			reset_game_state(game);
-		} else {
-			game->running = !game->running;
+	KeyboardKey key;
+	while ((key = GetKeyPressed()) != 0) {
+		switch (key) {
+		case KEY_UP:
+		case KEY_W:
+			if (game->running && !game->scene->snake->dir_changed && game->scene->snake->dy == 0) {
+				game->scene->snake->dy = -1;
+				game->scene->snake->dx = 0;
+				game->scene->snake->dir_changed = true;
+			}
+			break;
+		case KEY_DOWN:
+		case KEY_S:
+			if (game->running && !game->scene->snake->dir_changed && game->scene->snake->dy == 0) {
+				game->scene->snake->dy = 1;
+				game->scene->snake->dx = 0;
+				game->scene->snake->dir_changed = true;
+			}
+			break;
+		case KEY_LEFT:
+		case KEY_A:
+			if (game->running && !game->scene->snake->dir_changed && game->scene->snake->dx == 0) {
+				game->scene->snake->dx = -1;
+				game->scene->snake->dy = 0;
+				game->scene->snake->dir_changed = true;
+			}
+			break;
+		case KEY_RIGHT:
+		case KEY_D:
+			if (game->running && !game->scene->snake->dir_changed && game->scene->snake->dx == 0) {
+				game->scene->snake->dx = 1;
+				game->scene->snake->dy = 0;
+				game->scene->snake->dir_changed = true;
+			}
+			break;
+		case KEY_SPACE:
+			if (game->gameover) {
+				reset_game_state(game);
+			} else {
+				game->running = !game->running;
+			}
+			break;
+		default: {}
 		}
 	}
 }
 
 void handle_events(Game *game)
 {
-	SDL_Event e;
-	while (SDL_PollEvent(&e)) {
-		switch (e.type) {
-		case SDL_QUIT:
-			game->quit = true;
-			break;
-		case SDL_KEYDOWN:
-			handle_keyboard_events(e.key, game);
-			break;
-		}
+	if (WindowShouldClose()) {
+		game->quit = true;
+	} else {
+		handle_keyboard_events(game);
 	}
 }
 
@@ -423,32 +414,30 @@ int main(void)
 
 	Game game = {0};
 	if (!init_game(&game)) {
-		log_error("Could not initialize game: %s\n", SDL_GetError());
+		fprintf(stderr, "Could not initialize game.\n");
 		defer_exit(1);
 	}
 
-	uint32_t frame_start;
+	double previous_time = GetTime();
 	do {
-		frame_start = SDL_GetTicks();
+		double current_time = GetTime();
 
 		handle_events(&game);
+		if (current_time - previous_time >= TICK_DELAY) {
 
-		update_game(&game);
+			update_game(&game);
+
+			previous_time = current_time;
+		}
 
 		render(&game);
 
-		int elapsed = FRAME_DELAY - (SDL_GetTicks() - frame_start);
-		if (elapsed > 0) {
-			SDL_Delay(elapsed);
-		}
 	} while (!game.quit);
 
-	SDL_DestroyRenderer(game.renderer);
-	SDL_DestroyWindow(game.window);
+	CloseWindow();
  
 defer:
 	free_game(&game);
-	SDL_Quit();
 	return defer_ret_value;
 }
 
