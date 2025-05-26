@@ -7,6 +7,8 @@
 #include <time.h>
 #include <raylib.h>
 
+// #define SHOW_FPS
+
 #define UNUSED(x) ((void)(x))
 
 #define defer_exit(n) \
@@ -59,6 +61,7 @@ typedef struct {
 
 typedef struct {
 	Scene *scene;
+	size_t score;
 	bool running;
 	bool gameover;
 	bool quit;
@@ -127,6 +130,7 @@ bool init_game(Game *game)
 
 	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE);
 	SetTargetFPS(FPS);
+	SetExitKey(KEY_NULL);
 
 	init_scene(game);
 
@@ -137,8 +141,9 @@ bool init_game(Game *game)
 	return true;
 }
 
-void update_scene(Scene *scene)
+void update_scene(Game *game)
 {
+	Scene *scene = game->scene;
 	Snake *snake = scene->snake;
 	SnakeBody *tail = snake->tail;
 	SnakeBody *head = snake->head;
@@ -166,6 +171,7 @@ void update_scene(Scene *scene)
 		snake->tail = new_tail;
 		snake->size += 1;
 		scene->apple = new_apple(scene);
+		game->score += 1;
 	}
 	snake->dir_changed = false;
 }
@@ -203,7 +209,7 @@ void update_game(Game *game)
 {
 	if (game->running && !game->gameover) {
 		// TODO: if the game is running we update, else we present a pause screen
-		update_scene(game->scene);
+		update_scene(game);
 		check_game_over(game);
 	}
 	// TODO: if the player lost the game present a game over screen
@@ -306,12 +312,23 @@ void render_apple(Game *game)
 	DrawRectangleRec(rect, apple_color);
 }
 
+void render_ui(Game *game)
+{
+#ifdef SHOW_FPS
+	DrawFPS(10, 10 + UNIT + 10);
+#endif
+	char buf[32] = {0};
+	sprintf(buf, "%ld", game->score);
+	DrawText(buf, 10, 10, UNIT, RED);
+}
+
 void render(Game *game)
 {
 	BeginDrawing();
 		ClearBackground(GetColor(0x181818FF));
 		render_snake(game);
 		render_apple(game);
+		render_ui(game);
 	EndDrawing();
 }
 
@@ -346,6 +363,7 @@ void reset_game_state(Game *game)
 	free_snake(game->scene->snake);
 	game->scene->snake = new_snake();
 	game->scene->apple = new_apple(game->scene);
+	game->score = 0;
 	game->gameover = false;
 	game->running = true;
 }
