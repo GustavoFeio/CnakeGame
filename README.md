@@ -22,5 +22,6 @@ Have fun!
 
 # Controls
 - `w` `a` `s` `d`/`arrow keys` to move the snake
-- `space` to pause if the game is running, or restart if the game is over
+- `Space` to restart if the game is over
+- `Escape` to pause/unpause the game
 

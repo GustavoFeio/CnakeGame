@@ -402,10 +402,10 @@ void handle_keyboard_events(Game *game)
 		case KEY_SPACE:
 			if (game->gameover) {
 				reset_game_state(game);
-			} else {
-				game->running = !game->running;
 			}
 			break;
+		case KEY_ESCAPE:
+			game->running = !game->running;
 		default: {}
 		}
 	}
@@ -436,9 +436,7 @@ int main(void)
 
 		handle_events(&game);
 		if (current_time - previous_time >= TICK_DELAY) {
-
 			update_game(&game);
-
 			previous_time = current_time;
 		}
 
