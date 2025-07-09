@@ -300,16 +300,10 @@ void render_snake(Game *game)
 	DrawRectangleRec(rect, head_color);
 }
 
-void render_apple(Game *game)
+void render_apple(Apple apple)
 {
 	Color apple_color = GetColor(0xFF1818FF);
-	Rectangle rect = {
-		.x = game->scene->apple.x * UNIT,
-		.y = game->scene->apple.y * UNIT,
-		.width = APPLE_SIZE,
-		.height = APPLE_SIZE,
-	};
-	DrawRectangleRec(rect, apple_color);
+	DrawCircle((apple.x + 0.5) * UNIT, (apple.y + 0.5) * UNIT, APPLE_SIZE / 2, apple_color);
 }
 
 void render_ui(Game *game)
@@ -327,7 +321,7 @@ void render(Game *game)
 	BeginDrawing();
 		ClearBackground(GetColor(0x181818FF));
 		render_snake(game);
-		render_apple(game);
+		render_apple(game->scene->apple);
 		render_ui(game);
 	EndDrawing();
 }
