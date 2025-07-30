@@ -3,19 +3,21 @@ CC=cc
 
 FLAGS=-g -Wall -Wextra -pedantic -std=c99
 
-SRC=./src/
-BIN=./bin/
+SRC_DIR=./src
 
 EXE=cnake_game
 
-all: $(EXE)
+RAYLIB_DIR=./thirdparty/raylib
 
-$(EXE): $(SRC)main.c
-	$(CC) $< -o $@ $(FLAGS) -I/usr/local/include/ -L/usr/local/lib/ -lraylib -lm
+all: $(RAYLIB_DIR)/src/libraylib.a $(EXE) 
 
-bin:
-	mkdir $(BIN)
+$(RAYLIB_DIR)/src/libraylib.a: $(RAYLIB_DIR)/src/Makefile
+	$(MAKE) -C $(RAYLIB_DIR)/src
+
+$(EXE): $(SRC_DIR)/main.c
+	$(CC) $< -o $@ $(FLAGS) -I$(RAYLIB_DIR)/src -L$(RAYLIB_DIR)/src -lraylib -lm
 
 clean:
-	rm -r $(BIN)
+	rm -fv $(EXE)
+	$(MAKE) -C $(RAYLIB_DIR)/src clean
 
