@@ -1,8 +1,9 @@
 
 This is an implementation of the classic snake game in C, using Raylib.
 
-![](assets/cnake_game_preview_1.png)
-![](assets/cnake_game_preview_2.png)
+![](assets/cnake_game_preview_1.PNG)
+
+![](assets/cnake_game_preview_2.PNG)
 
 *Disclaimer*: This was developed fully in a Linux environment. Do not expect it to work on other platforms.
 
