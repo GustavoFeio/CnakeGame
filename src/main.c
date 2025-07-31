@@ -7,7 +7,7 @@
 #include <time.h>
 #include <raylib.h>
 
-// #define CNAKE_DEBUG
+#define CNAKE_DEBUG
 
 #define UNUSED(x) ((void)(x))
 
@@ -67,6 +67,13 @@ typedef struct {
 	size_t next;
 } SnakeBody;
 
+typedef enum {
+	LEFT,
+	RIGHT,
+	UP,
+	DOWN,
+} Direction;
+
 typedef struct {
 	// Dynamic array
 	SnakeBody *items;
@@ -75,7 +82,7 @@ typedef struct {
 
 	size_t tail; // tail index into items
 	size_t head; // head index into items
-	int dx, dy;
+	Direction dir;
 	bool dir_changed;
 } Snake;
 
@@ -251,8 +258,7 @@ static const char *const WINDOW_TITLE = "Cnake Game";
 
 void init_snake(Snake *snake)
 {
-	snake->dx = 1;
-	snake->dy = 0;
+	snake->dir = RIGHT;
 	snake->dir_changed = false;
 	snake->count = 0;
 
@@ -328,8 +334,10 @@ void update_scene(Game *game)
 	snake->head = tail;
 	head = tail;
 
-	snake->items[head].x = old_head.x + snake->dx;
-	snake->items[head].y = old_head.y + snake->dy;
+	int dx = snake->dir == LEFT ? -1 : snake->dir == RIGHT ? 1 : 0;
+	int dy = snake->dir == UP ? -1 : snake->dir == DOWN ? 1 : 0;
+	snake->items[head].x = old_head.x + dx;
+	snake->items[head].y = old_head.y + dy;
 
 	if (snake->items[head].x == scene->apple.x && snake->items[head].y == scene->apple.y) {
 		da_append(snake, ((SnakeBody) { old_tail.x, old_tail.y, snake->tail }));
@@ -350,7 +358,7 @@ bool ouroboros(Snake *snake)
 {
 	SnakeBody head = snake->items[snake->head];
 	size_t cur = snake->tail;
-	while (cur != snake->head) {
+	while (snake->items[cur].next != snake->head) { // Will break if the snake's size is < 2
 		SnakeBody b = snake->items[cur];
 		if (b.x == head.x && b.y == head.y) return true;
 		cur = b.next;
@@ -369,11 +377,9 @@ void check_game_over(Game *game)
 void update_game(Game *game)
 {
 	if (game->state == PLAYING) {
-		// TODO: if the game is running update, else present a pause screen
 		update_scene(game);
 		check_game_over(game);
 	}
-	// TODO: if the player lost the game present a game over screen
 }
 
 void render(Game *game)
@@ -420,33 +426,29 @@ void handle_keyboard_events(Game *game)
 		switch (key) {
 		case KEY_UP:
 		case KEY_W:
-			if (game->state == PLAYING && !snake->dir_changed && snake->dy == 0) {
-				snake->dy = -1;
-				snake->dx = 0;
+			if (game->state == PLAYING && !snake->dir_changed && snake->dir != DOWN) {
+				snake->dir = UP;
 				snake->dir_changed = true;
 			}
 			break;
 		case KEY_DOWN:
 		case KEY_S:
-			if (game->state == PLAYING && !snake->dir_changed && snake->dy == 0) {
-				snake->dy = 1;
-				snake->dx = 0;
+			if (game->state == PLAYING && !snake->dir_changed && snake->dir != UP) {
+				snake->dir = DOWN;
 				snake->dir_changed = true;
 			}
 			break;
 		case KEY_LEFT:
 		case KEY_A:
-			if (game->state == PLAYING && !snake->dir_changed && snake->dx == 0) {
-				snake->dx = -1;
-				snake->dy = 0;
+			if (game->state == PLAYING && !snake->dir_changed && snake->dir != RIGHT) {
+				snake->dir = LEFT;
 				snake->dir_changed = true;
 			}
 			break;
 		case KEY_RIGHT:
 		case KEY_D:
-			if (game->state == PLAYING && !snake->dir_changed && snake->dx == 0) {
-				snake->dx = 1;
-				snake->dy = 0;
+			if (game->state == PLAYING && !snake->dir_changed && snake->dir != LEFT) {
+				snake->dir = RIGHT;
 				snake->dir_changed = true;
 			}
 			break;
@@ -491,6 +493,9 @@ int main(void)
 
 		double current_time = GetTime();
 		if (current_time - previous_time >= TICK_DELAY) {
+#ifdef CNAKE_DEBUG
+			printf("DEBUG: delta_time: %lf\n", current_time - previous_time);
+#endif
 			update_game(&game);
 			previous_time = current_time;
 		}
