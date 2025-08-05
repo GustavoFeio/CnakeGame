@@ -7,7 +7,7 @@
 #include <time.h>
 #include <raylib.h>
 
-#define CNAKE_DEBUG
+// #define CNAKE_DEBUG
 
 #define UNUSED(x) ((void)(x))
 
@@ -219,12 +219,20 @@ void render_pause_screen(Game *game)
 	int pause_size = UNIT*2;
 	const char *pause = "Game Paused";
 	int pause_width = MeasureText(pause, pause_size);
-	DrawText(pause, (WINDOW_WIDTH - pause_width)/2, WINDOW_HEIGHT/3, pause_size, WHITE);
+	DrawText(pause, (WINDOW_WIDTH - pause_width)/2, WINDOW_HEIGHT/3 - UNIT/2, pause_size, WHITE);
 
 	int msg_size = UNIT*1.5;
-	const char *msg = "Press `Esc` to unpause";
-	int msg_width = MeasureText(msg, msg_size);
-	DrawText(msg, (WINDOW_WIDTH - msg_width)/2, WINDOW_HEIGHT/3*2, msg_size, WHITE);
+	int msg_padding = msg_size * 0.75;
+	// TODO: move all key inputs to macros and use GetKeyName to print instead of hard-coding
+	// TODO: add option to go back to the menu, because the animation there is nice :)
+	const char *msgs[] = {
+		"Press `Space` to unpause",
+		"Press `Esc` to exit",
+	};
+	for (size_t i = 0; i < sizeof(msgs)/sizeof(*msgs); i++) {
+		int msg_width = MeasureText(msgs[i], msg_size);
+		DrawText(msgs[i], (WINDOW_WIDTH - msg_width)/2, WINDOW_HEIGHT/3*2 + (UNIT + msg_padding)*i - UNIT/2, msg_size, WHITE);
+	}
 }
 
 void render_gameover_screen(Game *game)
@@ -237,18 +245,51 @@ void render_gameover_screen(Game *game)
 	int gameover_size = UNIT*2;
 	const char *gameover = "GAME OVER";
 	int gameover_width = MeasureText(gameover, gameover_size);
-	DrawText(gameover, (WINDOW_WIDTH - gameover_width)/2, WINDOW_HEIGHT/3, gameover_size, RED);
+	DrawText(gameover, (WINDOW_WIDTH - gameover_width)/2, WINDOW_HEIGHT/3 - UNIT/2, gameover_size, RED);
 
 	int msg_size = UNIT*1.5;
-	const char *msg = "Press `Space` to restart";
-	int msg_width = MeasureText(msg, msg_size);
-	DrawText(msg, (WINDOW_WIDTH - msg_width)/2, WINDOW_HEIGHT/3*2, msg_size, RED);
+	int msg_padding = msg_size * 0.75;
+	// TODO: move all key inputs to macros and use GetKeyName to print instead of hard-coding
+	const char *msgs[] = {
+		"Press `Space` to restart",
+		"Press `Esc` to exit",
+	};
+	for (size_t i = 0; i < sizeof(msgs)/sizeof(*msgs); i++) {
+		int msg_width = MeasureText(msgs[i], msg_size);
+		DrawText(msgs[i], (WINDOW_WIDTH - msg_width)/2, WINDOW_HEIGHT/3*2 + (UNIT + msg_padding)*i - UNIT/2, msg_size, WHITE);
+	}
+}
+
+void render_menu_screen(Game *game)
+{
+	UNUSED(game);
+
+	Color darker_bg = ColorAlpha(BLACK, 0.15f);
+	DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, darker_bg);
+
+	int title_size = UNIT*2;
+	const char *title = "CnakeGame";
+	int title_width = MeasureText(title, title_size);
+	DrawText(title, (WINDOW_WIDTH - title_width)/2, WINDOW_HEIGHT/3 - UNIT/2, title_size, WHITE);
+
+	int msg_size = UNIT*1.5;
+	int msg_padding = msg_size * 0.75;
+	// TODO: move all key inputs to macros and use GetKeyName to print instead of hard-coding
+	const char *msgs[] = {
+		"Press `Space` to start",
+		"Press `Esc` to exit",
+	};
+	for (size_t i = 0; i < sizeof(msgs)/sizeof(*msgs); i++) {
+		int msg_width = MeasureText(msgs[i], msg_size);
+		DrawText(msgs[i], (WINDOW_WIDTH - msg_width)/2, WINDOW_HEIGHT/3*2 + (UNIT + msg_padding)*i - UNIT/2, msg_size, WHITE);
+	}
 }
 
 typedef void (*RenderFunc)(Game *);
 
 #define RENDER_COLUMNS 5
 static const RenderFunc renderer[][RENDER_COLUMNS] = {
+	[MENU] = {&render_snake, &render_apple, &render_menu_screen, NULL},
 	[PLAYING] = {&render_snake, &render_apple, &render_score, NULL},
 	[PAUSED]  = {&render_snake, &render_apple, &render_score, &render_pause_screen, NULL},
 	[GAMEOVER]  = {&render_snake, &render_apple, &render_score, &render_gameover_screen, NULL},
@@ -262,9 +303,8 @@ void init_snake(Snake *snake)
 	snake->dir_changed = false;
 	snake->count = 0;
 
-	// We update the game once before rendering, so we start at -1
 	for (size_t i = 0; i < SNAKE_INIT_LENGTH; i++) {
-		da_append(snake, ((SnakeBody) { i-1, 0, i+1 }));
+		da_append(snake, ((SnakeBody) { i, 0, i+1 }));
 	}
 	snake->tail = 0;
 	snake->head = snake->count - 1;
@@ -302,7 +342,22 @@ void init_scene(Game *game)
 	game->scene.apple = new_apple(&game->scene);
 }
 
-bool init_game(Game *game)
+void prepare_menu(Game *game)
+{
+	Snake *snake = &game->scene.snake;
+	SnakeBody *b = &snake->items[snake->tail];
+	for (size_t i = 0; i < snake->count; i++) {
+		b->x = (GRID_WIDTH/2) - snake->count + i;
+		b->y = (GRID_HEIGHT/2) - snake->count;
+		b = &snake->items[b->next];
+	}
+
+	Apple *apple = &game->scene.apple;
+	apple->x = (GRID_WIDTH / 2);
+	apple->y = (GRID_HEIGHT / 2);
+}
+
+void init_game(Game *game)
 {
 	srand(time(NULL));
 
@@ -311,13 +366,11 @@ bool init_game(Game *game)
 	SetExitKey(KEY_NULL);
 
 	init_scene(game);
+	prepare_menu(game);
 
 	game->score = 0;
-	// TODO: menu
-	game->state = PLAYING;
+	game->state = MENU;
 	game->quit = false;
-
-	return true;
 }
 
 void update_scene(Game *game)
@@ -374,11 +427,31 @@ void check_game_over(Game *game)
 	}
 }
 
+void update_menu(Game *game)
+{
+	Snake *snake = &game->scene.snake;
+	SnakeBody head = snake->items[snake->head];
+	if (head.x == (GRID_WIDTH / 2) + (int)snake->count) {
+		if (head.y == (GRID_HEIGHT / 2) - (int)snake->count)
+			snake->dir = DOWN;
+		else if (head.y == (GRID_HEIGHT / 2) + (int)snake->count)
+			snake->dir = LEFT;
+	} else if (head.x == (GRID_WIDTH / 2) - (int)snake->count) {
+		if (head.y == (GRID_HEIGHT / 2) - (int)snake->count)
+			snake->dir = RIGHT;
+		else if (head.y == (GRID_HEIGHT / 2) + (int)snake->count)
+			snake->dir = UP;
+	}
+}
+
 void update_game(Game *game)
 {
 	if (game->state == PLAYING) {
 		update_scene(game);
 		check_game_over(game);
+	} else if (game->state == MENU) {
+		update_menu(game);
+		update_scene(game);
 	}
 }
 
@@ -455,13 +528,18 @@ void handle_keyboard_events(Game *game)
 		case KEY_SPACE:
 			if (game->state == GAMEOVER) {
 				reset_game_state(game);
+			} else if (game->state == PLAYING) {
+				game->state = PAUSED;
+			} else if (game->state == PAUSED || game->state == MENU) {
+				game->state = PLAYING;
 			}
 			break;
 		case KEY_ESCAPE:
-			if (game->state == PAUSED) {
-				game->state = PLAYING;
-			} else if (game->state == PLAYING) {
-				game->state = PAUSED;
+			// TODO: add confirmation screen
+			if (game->state == MENU
+					|| game->state == PAUSED
+					|| game->state == GAMEOVER) {
+				game->quit = true;
 			}
 		default: {}
 		}
@@ -479,13 +557,8 @@ void handle_events(Game *game)
 
 int main(void)
 {
-	int defer_ret_value = 0;
-
 	Game game = {0};
-	if (!init_game(&game)) {
-		fprintf(stderr, "Could not initialize game.\n");
-		defer_exit(1);
-	}
+	init_game(&game);
 
 	double previous_time = GetTime();
 	do {
@@ -494,7 +567,7 @@ int main(void)
 		double current_time = GetTime();
 		if (current_time - previous_time >= TICK_DELAY) {
 #ifdef CNAKE_DEBUG
-			printf("DEBUG: delta_time: %lf\n", current_time - previous_time);
+			printf("DEBUG: time elapsed: %.3lfms\n", current_time - previous_time);
 #endif
 			update_game(&game);
 			previous_time = current_time;
@@ -503,8 +576,6 @@ int main(void)
 	} while (!game.quit);
 
 	CloseWindow();
-defer:
-	free_game(&game);
-	return defer_ret_value;
+	return 0;
 }
 
