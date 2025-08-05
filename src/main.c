@@ -20,7 +20,7 @@
 #define FPS 60
 
 #define TPS 10
-#define TICK_DELAY (1.0 / TPS)
+#define TICK_DELAY (1.0f / (double)TPS)
 
 #define GRID_WIDTH 30
 #define GRID_HEIGHT 20
@@ -35,7 +35,10 @@
 #define WINDOW_WIDTH (UNIT*GRID_WIDTH)
 #define WINDOW_HEIGHT (UNIT*GRID_HEIGHT)
 
+#define GRID_COLOR 0x4444FFFF
 #define BACKGROUND_COLOR 0x181818FF
+#define SNAKE_BODY_COLOR 0x18FF18FF
+#define SNAKE_HEAD_COLOR 0x90FF90FF
 #define APPLE_COLOR 0xFF1818FF
 
 void *cnake_realloc(void *items, size_t bytes)
@@ -120,7 +123,7 @@ void render_snake(Game *game)
 		.height = SNAKE_SIZE,
 	};
 
-	Color body_color = GetColor(0x18FF18FF);
+	Color body_color = GetColor(SNAKE_BODY_COLOR);
 	if (cur.x == next.x) {
 		rect.width -= 2;
 		rect.x += 1;
@@ -188,7 +191,7 @@ void render_snake(Game *game)
 		rect.y += 1;
 		if (previous.x > cur.x) rect.x += 1;
 	}
-	Color head_color = GetColor(0x90FF90FF);
+	Color head_color = GetColor(SNAKE_HEAD_COLOR);
 	DrawRectangleRec(rect, head_color);
 }
 
@@ -201,9 +204,6 @@ void render_apple(Game *game)
 
 void render_score(Game *game)
 {
-#ifdef CNAKE_DEBUG
-	DrawFPS(10, 10 + UNIT + 10);
-#endif
 	char buf[32] = {0};
 	sprintf(buf, "%ld", game->score);
 	DrawText(buf, 10, 10, UNIT*1.5, RED);
@@ -459,12 +459,24 @@ void render(Game *game)
 {
 	BeginDrawing();
 		ClearBackground(GetColor(BACKGROUND_COLOR));
+#ifdef CNAKE_DEBUG
+		Color color = GetColor(GRID_COLOR);
+		for (int i = 0; i < GRID_HEIGHT; i++) {
+			DrawLine(0, i*UNIT, WINDOW_WIDTH, i*UNIT, color);
+		}
+		for (int i = 0; i < GRID_WIDTH; i++) {
+			DrawLine(i*UNIT, 0, i*UNIT, WINDOW_HEIGHT, color);
+		}
+#endif
 		const RenderFunc *pipeline = renderer[game->state];
 		for (int i = 0; i < RENDER_COLUMNS; i++) {
 			RenderFunc f = pipeline[i];
 			if (f == NULL) break;
 			f(game);
 		}
+#ifdef CNAKE_DEBUG
+		DrawFPS(10, 10 + UNIT + 10);
+#endif
 	EndDrawing();
 }
 
@@ -567,7 +579,7 @@ int main(void)
 		double current_time = GetTime();
 		if (current_time - previous_time >= TICK_DELAY) {
 #ifdef CNAKE_DEBUG
-			printf("DEBUG: time elapsed: %.3lfms\n", current_time - previous_time);
+			printf("DEBUG: time elapsed: %.3lfms\n", (current_time - previous_time) * 1000.0f);
 #endif
 			update_game(&game);
 			previous_time = current_time;
