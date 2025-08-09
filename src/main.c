@@ -7,7 +7,18 @@
 #include <time.h>
 #include <raylib.h>
 
+// TODO: add debug menu to adjust all debug related stuff in the game
+// instead of defining macros and recompiling
+#if 0
 // #define CNAKE_DEBUG
+// #define CNAKE_TRANSPARENT 0.5f
+// #define CNAKE_GRID
+// #define CNAKE_CALLS
+#endif
+
+#ifdef CNAKE_CALLS
+size_t draws;
+#endif // CNAKE_CALLS
 
 #define UNUSED(x) ((void)(x))
 
@@ -41,7 +52,7 @@
 #define SNAKE_HEAD_COLOR 0x90FF90FF
 #define APPLE_COLOR 0xFF1818FF
 
-void *cnake_realloc(void *items, size_t bytes)
+static inline void *cnake_realloc(void *items, size_t bytes)
 {
 #ifdef CNAKE_DEBUG
 	printf("DEBUG: Reallocated %zu bytes\n", bytes);
@@ -110,96 +121,131 @@ typedef struct {
 	bool quit;
 } Game;
 
+static inline void cnake_DrawRectangleRec(Rectangle rec, Color color)
+{
+#ifdef CNAKE_CALLS
+	draws++;
+#endif // CNAKE_CALLS
+	DrawRectangleRec(rec, color);
+}
+
+static inline void cnake_DrawCircle(int centerX, int centerY, float radius, Color color)
+{
+#ifdef CNAKE_CALLS
+	draws++;
+#endif // CNAKE_DEBUG
+	DrawCircle(centerX, centerY, radius, color);
+}
+
+static inline void cnake_DrawLine(int startPosX, int startPosY, int endPosX, int endPosY, Color color)
+{
+#ifdef CNAKE_CALLS
+	draws++;
+#endif // CNAKE_DEBUG
+	DrawLine(startPosX, startPosY, endPosX, endPosY, color);
+}
+
 void render_snake(Game *game)
 {
 	Snake *snake = &game->scene.snake;
 	SnakeBody cur = snake->items[snake->tail];
-	SnakeBody next = snake->items[cur.next];
+	SnakeBody next = cur;
 	SnakeBody previous;
-	Rectangle rect = {
-		.x = cur.x * UNIT,
-		.y = cur.y * UNIT,
-		.width  = SNAKE_SIZE,
-		.height = SNAKE_SIZE,
-	};
-
+	Rectangle rect;
 	Color body_color = GetColor(SNAKE_BODY_COLOR);
-	if (cur.x == next.x) {
-		rect.width -= 2;
-		rect.x += 1;
-	} else {
-		rect.height -= 2;
-		rect.y += 1;
-	}
-	DrawRectangleRec(rect, body_color);
+#ifdef CNAKE_TRANSPARENT
+	body_color = ColorAlpha(body_color, CNAKE_TRANSPARENT);
+#endif // CNAKE_DEBUG
 
 	do {
 		previous = cur;
 		cur = next;
 		next = snake->items[cur.next];
 
-		rect = (Rectangle) {
-			.x = cur.x*UNIT,
-			.y = cur.y*UNIT,
-			.width  = SNAKE_SIZE,
-			.height = SNAKE_SIZE,
-		};
-
-		if (cur.x == next.x) { // same column
-			if (previous.x == cur.x) { // straight line
-				rect.width -= 2;
-				rect.x += 1;
-			} else { // bending
-				rect.width -= 1;
-				rect.height -= 1;
-				if (cur.y < next.y) // going down
-					rect.y += 1;
-				if (previous.x > cur.x) // from the right
-					rect.x += 1;
+		if (previous.x != cur.x || previous.y != cur.y) {
+			rect = (Rectangle) {
+				.x = previous.x * UNIT + 1,
+				.y = previous.y * UNIT + 1,
+				.width  = SNAKE_SIZE - 2,
+				.height = SNAKE_SIZE - 2,
+			};
+			if (previous.x < cur.x) {
+				rect.width += SNAKE_SIZE;
+			} else if (previous.x > cur.x) {
+				rect.x -= SNAKE_SIZE;
+				rect.width += SNAKE_SIZE;
+			} else if (previous.y < cur.y) {
+				rect.height += SNAKE_SIZE;
+			} else {
+				rect.y -= SNAKE_SIZE;
+				rect.height += SNAKE_SIZE;
 			}
-		} else { // same row
-			if (previous.y == cur.y) { // straight line
-				rect.height -= 2;
-				rect.y += 1;
-			} else { // bending
-				rect.width -= 1;
-				rect.height -= 1;
-				if (cur.x < next.x) // going right
-					rect.x += 1;
-				if (previous.y > cur.y) // from the bottom
-					rect.y += 1;
-			}
+#ifndef CNAKE_DEBUG
+			cnake_DrawRectangleRec(rect, body_color);
+#else
+			cnake_DrawRectangleRec(rect, RED);
+#endif // CNAKE_DEBUG
 		}
-		DrawRectangleRec(rect, body_color);
+
+		rect = (Rectangle) {
+			.x = cur.x*UNIT + 1,
+			.y = cur.y*UNIT + 1,
+			.width  = SNAKE_SIZE - 2,
+			.height = SNAKE_SIZE - 2,
+		};
+		if (cur.x == next.x) { // same column
+			bool going_up = next.y < cur.y;
+			size_t segment_height = 0;
+			while (cur.x == next.x && cur.next != snake->head) {
+				segment_height += SNAKE_SIZE;
+				cur = next;
+				next = snake->items[next.next];
+			}
+			rect.height += segment_height;
+			if (going_up) rect.y -= segment_height;
+		} else { // same row
+			bool going_left = next.x < cur.x;
+			size_t segment_width = 0;
+			while (cur.y == next.y && cur.next != snake->head) {
+				segment_width += SNAKE_SIZE;
+				cur = next;
+				next = snake->items[next.next];
+			}
+			rect.width += segment_width;
+			if (going_left) rect.x -= segment_width;
+		}
+		cnake_DrawRectangleRec(rect, body_color);
+
 	} while (cur.next != snake->head);
 
 	previous = cur;
 	cur = next;
-
 	rect = (Rectangle) {
 		.x = snake->items[snake->head].x * UNIT,
 		.y = snake->items[snake->head].y * UNIT,
-		.width  = SNAKE_SIZE - 1,
-		.height = SNAKE_SIZE - 1,
+		.width  = SNAKE_SIZE,
+		.height = SNAKE_SIZE,
 	};
 	if (previous.x == cur.x) { // same column
-		rect.width -= 1;
+		rect.width -= 2;
 		rect.x += 1;
 		if (previous.y > cur.y) rect.y += 1;
+		else rect.y -= 1;
 	} else { // same row
-		rect.height -= 1;
+		rect.height -= 2;
 		rect.y += 1;
 		if (previous.x > cur.x) rect.x += 1;
+		else rect.x -= 1;
 	}
 	Color head_color = GetColor(SNAKE_HEAD_COLOR);
-	DrawRectangleRec(rect, head_color);
+	cnake_DrawRectangleRec(rect, head_color);
 }
 
 void render_apple(Game *game)
 {
 	Apple apple = game->scene.apple;
 	Color apple_color = GetColor(APPLE_COLOR);
-	DrawCircle((apple.x + 0.5) * UNIT, (apple.y + 0.5) * UNIT, APPLE_SIZE / 2, apple_color);
+	cnake_DrawCircle((apple.x + 0.5) * UNIT, (apple.y + 0.5) * UNIT, APPLE_SIZE / 2, apple_color);
 }
 
 void render_score(Game *game)
@@ -457,9 +503,12 @@ void update_game(Game *game)
 
 void render(Game *game)
 {
+#ifdef CNAKE_CALLS
+	draws = 0;
+#endif // CNAKE_DEBUG
 	BeginDrawing();
 		ClearBackground(GetColor(BACKGROUND_COLOR));
-#ifdef CNAKE_DEBUG
+#ifdef CNAKE_GRID
 		Color color = GetColor(GRID_COLOR);
 		for (int i = 0; i < GRID_HEIGHT; i++) {
 			DrawLine(0, i*UNIT, WINDOW_WIDTH, i*UNIT, color);
@@ -467,7 +516,7 @@ void render(Game *game)
 		for (int i = 0; i < GRID_WIDTH; i++) {
 			DrawLine(i*UNIT, 0, i*UNIT, WINDOW_HEIGHT, color);
 		}
-#endif
+#endif // CNAKE_GRID
 		const RenderFunc *pipeline = renderer[game->state];
 		for (int i = 0; i < RENDER_COLUMNS; i++) {
 			RenderFunc f = pipeline[i];
@@ -476,8 +525,11 @@ void render(Game *game)
 		}
 #ifdef CNAKE_DEBUG
 		DrawFPS(10, 10 + UNIT + 10);
-#endif
+#endif // CNAKE_DEBUG
 	EndDrawing();
+#ifdef CNAKE_CALLS
+	printf("[DEBUG]: issued %ld draw calls\n", draws);
+#endif // CNAKE_CALLS
 }
 
 void free_snake(Snake *snake)
