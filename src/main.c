@@ -239,6 +239,12 @@ void render_snake(Game *game)
 	}
 	Color head_color = GetColor(SNAKE_HEAD_COLOR);
 	cnake_DrawRectangleRec(rect, head_color);
+	// float eye_white_radius = rect.width/4;
+	// float eye_black_radius = rect.width/5;
+	// cnake_DrawCircle(rect.x + rect.width/2 - rect.width/3, rect.y + eye_white_radius, eye_white_radius, WHITE);
+	// cnake_DrawCircle(rect.x + rect.width/2 + rect.width/3, rect.y + eye_white_radius, eye_white_radius, WHITE);
+	// cnake_DrawCircle(rect.x + rect.width/2 - rect.width/3, rect.y + eye_white_radius, eye_black_radius, BLACK);
+	// cnake_DrawCircle(rect.x + rect.width/2 + rect.width/3, rect.y + eye_white_radius, eye_black_radius, BLACK);
 }
 
 void render_apple(Game *game)
@@ -556,6 +562,52 @@ void reset_game_state(Game *game)
 }
 
 void handle_keyboard_events(Game *game)
+{
+	Snake *snake = &game->scene.snake;
+	if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+		if (game->state == PLAYING && !snake->dir_changed && snake->dir != DOWN) {
+			snake->dir = UP;
+			snake->dir_changed = true;
+		}
+	}
+	if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
+		if (game->state == PLAYING && !snake->dir_changed && snake->dir != UP) {
+			snake->dir = DOWN;
+			snake->dir_changed = true;
+		}
+	}
+	if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
+		if (game->state == PLAYING && !snake->dir_changed && snake->dir != RIGHT) {
+			snake->dir = LEFT;
+			snake->dir_changed = true;
+		}
+	}
+	if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
+		if (game->state == PLAYING && !snake->dir_changed && snake->dir != LEFT) {
+			snake->dir = RIGHT;
+			snake->dir_changed = true;
+		}
+	}
+	if (IsKeyPressed(KEY_SPACE)) {
+		if (game->state == GAMEOVER) {
+			reset_game_state(game);
+		} else if (game->state == PLAYING) {
+			game->state = PAUSED;
+		} else if (game->state == PAUSED || game->state == MENU) {
+			game->state = PLAYING;
+		}
+	}
+	if (IsKeyPressed(KEY_ESCAPE)) {
+		// TODO: add confirmation screen
+		if (game->state == MENU
+				|| game->state == PAUSED
+				|| game->state == GAMEOVER) {
+			game->quit = true;
+		}
+	}
+}
+
+void _handle_keyboard_events(Game *game)
 {
 	Snake *snake = &game->scene.snake;
 	KeyboardKey key;
