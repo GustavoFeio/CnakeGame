@@ -30,7 +30,7 @@ size_t draws;
 
 #define FPS 60
 
-#define TPS 10
+#define TPS 13
 #define TICK_DELAY (1.0f / (double)TPS)
 
 #define GRID_WIDTH 30
