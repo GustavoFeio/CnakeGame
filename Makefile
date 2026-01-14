@@ -1,27 +1,30 @@
 
 CC = cc
 
-FLAGS = -g -Wall -Wextra -pedantic -std=c99
+SRC = ./src
+RAYLIB = ./thirdparty/raylib
 
-SRC_DIR = ./src
+FLAGS = -g -Wall -Wextra -pedantic -std=c99
+INCLUDES = -I$(RAYLIB)/src
+LINKS = -L$(RAYLIB)/src
+LIBS = -l:libraylib.a -lm
 
 EXE       = cnake_game
 DEBUG_EXE = cnake_debug
 
-RAYLIB_DIR = ./thirdparty/raylib
+all: $(EXE)
 
-all: $(RAYLIB_DIR)/src/libraylib.a $(EXE) 
+$(EXE): $(SRC)/main.c $(RAYLIB)/src/libraylib.a
+	$(CC) $< -o $@ -O3 $(INCLUDES) $(LINKS) $(LIBS)
 
-debug: $(SRC_DIR)/main.c $(RAYLIB_DIR)/src/libraylib.a
-	$(CC) $< -o $(DEBUG_EXE) $(FLAGS) -I$(RAYLIB_DIR)/src -L$(RAYLIB_DIR)/src -lraylib -lm
+debug: $(SRC)/main.c $(RAYLIB)/src/libraylib.a
+	$(CC) $< -o $(DEBUG_EXE) $(FLAGS) $(INCLUDES) $(LINKS) $(LIBS)
 
-$(RAYLIB_DIR)/src/libraylib.a: $(RAYLIB_DIR)/src/Makefile
-	$(MAKE) -C $(RAYLIB_DIR)/src
+$(RAYLIB)/src/libraylib.a: $(RAYLIB)/src/Makefile
+	$(MAKE) -C $(RAYLIB)/src
 
-$(EXE): $(SRC_DIR)/main.c
-	$(CC) $< -o $@ -O3 -I$(RAYLIB_DIR)/src -L$(RAYLIB_DIR)/src -lraylib -lm
-
+.PHONY: clean
 clean:
 	rm -fv $(EXE) $(DEBUG_EXE)
-	$(MAKE) -C $(RAYLIB_DIR)/src clean
+	$(MAKE) -C $(RAYLIB)/src clean
 
