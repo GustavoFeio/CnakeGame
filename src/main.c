@@ -34,6 +34,8 @@ size_t draws;
 #define TPS 13
 #define TICK_DELAY (1.0f / (double)TPS)
 
+static const char *WINDOW_TITLE = "CnakeGame";
+
 #define GRID_WIDTH 30
 #define GRID_HEIGHT 20
 #define UNIT 30
@@ -113,6 +115,7 @@ typedef enum {
 	PLAYING,
 	PAUSED,
 	GAMEOVER,
+	// CONFIRM_QUIT,
 } GameState;
 
 typedef struct {
@@ -240,12 +243,6 @@ void render_snake(Game *game)
 	}
 	Color head_color = GetColor(SNAKE_HEAD_COLOR);
 	cnake_DrawRectangleRec(rect, head_color);
-	// float eye_white_radius = rect.width/4;
-	// float eye_black_radius = rect.width/5;
-	// cnake_DrawCircle(rect.x + rect.width/2 - rect.width/3, rect.y + eye_white_radius, eye_white_radius, WHITE);
-	// cnake_DrawCircle(rect.x + rect.width/2 + rect.width/3, rect.y + eye_white_radius, eye_white_radius, WHITE);
-	// cnake_DrawCircle(rect.x + rect.width/2 - rect.width/3, rect.y + eye_white_radius, eye_black_radius, BLACK);
-	// cnake_DrawCircle(rect.x + rect.width/2 + rect.width/3, rect.y + eye_white_radius, eye_black_radius, BLACK);
 }
 
 void render_apple(Game *game)
@@ -277,10 +274,9 @@ void render_pause_screen(Game *game)
 	int msg_size = UNIT*1.5;
 	int msg_padding = msg_size * 0.75;
 	// TODO: move all key inputs to macros and use GetKeyName to print instead of hard-coding
-	// TODO: add option to go back to the menu, because the animation there is nice :)
 	const char *msgs[] = {
 		"Press `Space` to unpause",
-		"Press `Esc` to exit",
+		"Press `Esc` to go back to the menu",
 	};
 	for (size_t i = 0; i < sizeof(msgs)/sizeof(*msgs); i++) {
 		int msg_width = MeasureText(msgs[i], msg_size);
@@ -305,7 +301,7 @@ void render_gameover_screen(Game *game)
 	// TODO: move all key inputs to macros and use GetKeyName to print instead of hard-coding
 	const char *msgs[] = {
 		"Press `Space` to restart",
-		"Press `Esc` to exit",
+		"Press `Esc` to go back to the menu",
 	};
 	for (size_t i = 0; i < sizeof(msgs)/sizeof(*msgs); i++) {
 		int msg_width = MeasureText(msgs[i], msg_size);
@@ -321,9 +317,8 @@ void render_menu_screen(Game *game)
 	DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, darker_bg);
 
 	int title_size = UNIT*2;
-	const char *title = "CnakeGame";
-	int title_width = MeasureText(title, title_size);
-	DrawText(title, (WINDOW_WIDTH - title_width)/2, WINDOW_HEIGHT/3 - UNIT/2, title_size, WHITE);
+	int title_width = MeasureText(WINDOW_TITLE, title_size);
+	DrawText(WINDOW_TITLE, (WINDOW_WIDTH - title_width)/2, WINDOW_HEIGHT/3 - UNIT/2, title_size, WHITE);
 
 	int msg_size = UNIT*1.5;
 	int msg_padding = msg_size * 0.75;
@@ -342,13 +337,11 @@ typedef void (*RenderFunc)(Game *);
 
 #define RENDER_COLUMNS 5
 static const RenderFunc renderer[][RENDER_COLUMNS] = {
-	[MENU] = {&render_snake, &render_apple, &render_menu_screen, NULL},
-	[PLAYING] = {&render_snake, &render_apple, &render_score, NULL},
-	[PAUSED]  = {&render_snake, &render_apple, &render_score, &render_pause_screen, NULL},
+	[MENU]      = {&render_snake, &render_apple, &render_menu_screen, NULL},
+	[PLAYING]   = {&render_snake, &render_apple, &render_score, NULL},
+	[PAUSED]    = {&render_snake, &render_apple, &render_score, &render_pause_screen, NULL},
 	[GAMEOVER]  = {&render_snake, &render_apple, &render_score, &render_gameover_screen, NULL},
 };
-
-static const char *const WINDOW_TITLE = "Cnake Game";
 
 void init_snake(Snake *snake)
 {
@@ -600,65 +593,12 @@ void handle_keyboard_events(Game *game)
 	}
 	if (IsKeyPressed(KEY_ESCAPE)) {
 		// TODO: add confirmation screen
-		if (game->state == MENU
-				|| game->state == PAUSED
-				|| game->state == GAMEOVER) {
+		if (game->state == MENU) {
 			game->quit = true;
-		}
-	}
-}
-
-void _handle_keyboard_events(Game *game)
-{
-	Snake *snake = &game->scene.snake;
-	KeyboardKey key;
-	while ((key = GetKeyPressed()) != 0) {
-		switch (key) {
-		case KEY_UP:
-		case KEY_W:
-			if (game->state == PLAYING && !snake->dir_changed && snake->dir != DOWN) {
-				snake->dir = UP;
-				snake->dir_changed = true;
-			}
-			break;
-		case KEY_DOWN:
-		case KEY_S:
-			if (game->state == PLAYING && !snake->dir_changed && snake->dir != UP) {
-				snake->dir = DOWN;
-				snake->dir_changed = true;
-			}
-			break;
-		case KEY_LEFT:
-		case KEY_A:
-			if (game->state == PLAYING && !snake->dir_changed && snake->dir != RIGHT) {
-				snake->dir = LEFT;
-				snake->dir_changed = true;
-			}
-			break;
-		case KEY_RIGHT:
-		case KEY_D:
-			if (game->state == PLAYING && !snake->dir_changed && snake->dir != LEFT) {
-				snake->dir = RIGHT;
-				snake->dir_changed = true;
-			}
-			break;
-		case KEY_SPACE:
-			if (game->state == GAMEOVER) {
-				reset_game_state(game);
-			} else if (game->state == PLAYING) {
-				game->state = PAUSED;
-			} else if (game->state == PAUSED || game->state == MENU) {
-				game->state = PLAYING;
-			}
-			break;
-		case KEY_ESCAPE:
-			// TODO: add confirmation screen
-			if (game->state == MENU
-					|| game->state == PAUSED
-					|| game->state == GAMEOVER) {
-				game->quit = true;
-			}
-		default: {}
+		} else if (game->state == PAUSED || game->state == GAMEOVER) {
+			reset_game_state(game);
+			prepare_menu(game);
+			game->state = MENU;
 		}
 	}
 }
@@ -688,8 +628,8 @@ int main(void)
 		render(&game);
 	} while (!game.quit);
 
-	free_game(&game);
 	CloseWindow();
+	free_game(&game);
 	return 0;
 }
 
