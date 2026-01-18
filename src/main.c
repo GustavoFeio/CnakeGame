@@ -10,10 +10,10 @@
 // TODO: add debug menu to adjust all debug related stuff in the game
 // instead of defining macros and recompiling
 #if 0
-// #define CNAKE_DEBUG
-// #define CNAKE_TRANSPARENT 0.5f
-// #define CNAKE_GRID
-// #define CNAKE_CALLS
+#define CNAKE_DEBUG
+#define CNAKE_TRANSPARENT 0.5f
+#define CNAKE_GRID
+#define CNAKE_CALLS
 #endif
 
 #ifdef CNAKE_CALLS
@@ -21,12 +21,6 @@ size_t draws;
 #endif // CNAKE_CALLS
 
 #define UNUSED(x) ((void)(x))
-
-#define defer_exit(n) \
-	do { \
-		defer_ret_value = (n); \
-		goto defer; \
-	} while (0)
 
 #define FPS 60
 
@@ -46,11 +40,11 @@ size_t draws;
 #define WINDOW_WIDTH (UNIT*GRID_WIDTH)
 #define WINDOW_HEIGHT (UNIT*GRID_HEIGHT)
 
-#define GRID_COLOR 0x4444FFFF
+#define GRID_COLOR       0x4444FFFF
 #define BACKGROUND_COLOR 0x181818FF
 #define SNAKE_BODY_COLOR 0x18FF18FF
 #define SNAKE_HEAD_COLOR 0x90FF90FF
-#define APPLE_COLOR 0xFF1818FF
+#define APPLE_COLOR      0xFF1818FF
 
 static inline void *cnake_realloc(void *items, size_t bytes)
 {
@@ -61,7 +55,7 @@ static inline void *cnake_realloc(void *items, size_t bytes)
 }
 
 #define DA_INIT_CAPACITY 16
-#define DA_GROWTH_FACTOR 1.5
+#define DA_GROWTH_FACTOR 2
 
 #define da_append(xs, x) \
 	do { \
@@ -664,11 +658,7 @@ void _handle_keyboard_events(Game *game)
 
 void handle_events(Game *game)
 {
-	if (WindowShouldClose()) {
-		game->quit = true;
-	} else {
-		handle_keyboard_events(game);
-	}
+	handle_keyboard_events(game);
 }
 
 int main(void)
@@ -691,6 +681,7 @@ int main(void)
 		render(&game);
 	} while (!game.quit);
 
+	free_game(&game);
 	CloseWindow();
 	return 0;
 }

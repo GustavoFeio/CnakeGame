@@ -4,7 +4,7 @@ CC = cc
 SRC = ./src
 RAYLIB = ./thirdparty/raylib
 
-FLAGS = -g -Wall -Wextra -pedantic -std=c99
+FLAGS = -g -Wall -Wextra
 INCLUDES = -I$(RAYLIB)/src
 LINKS = -L$(RAYLIB)/src
 LIBS = -l:libraylib.a -lm
