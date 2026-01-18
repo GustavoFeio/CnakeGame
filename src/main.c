@@ -5,6 +5,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>
+
+#define CLOG_DEBUG_OUT stdout
+#define CLOG_DEF inline static
+#define CLOG_LOG_ORDER {CLOG_TAG}
+#define CLOG_DEBUG_COLOR (CLOG_OUTPUT_BOLD CLOG_OUTPUT_BLUE)
+#define CLOG_IMPLEMENTATION
+#include "clogger.h"
 #include <raylib.h>
 
 // TODO: add debug menu to adjust all debug related stuff in the game
@@ -49,7 +56,7 @@ size_t draws;
 static inline void *cnake_realloc(void *items, size_t bytes)
 {
 #ifdef CNAKE_DEBUG
-	printf("DEBUG: Reallocated %zu bytes\n", bytes);
+	clog_debug("Reallocated %zu bytes", bytes);
 #endif
 	return realloc(items, bytes);
 }
@@ -528,7 +535,7 @@ void render(Game *game)
 #endif // CNAKE_DEBUG
 	EndDrawing();
 #ifdef CNAKE_CALLS
-	printf("[DEBUG]: issued %ld draw calls\n", draws);
+	clog_debug("issued %ld draw calls", draws);
 #endif // CNAKE_CALLS
 }
 
@@ -673,7 +680,7 @@ int main(void)
 		double current_time = GetTime();
 		if (current_time - previous_time >= TICK_DELAY) {
 #ifdef CNAKE_DEBUG
-			printf("DEBUG: time elapsed: %.3lfms\n", (current_time - previous_time) * 1000.0f);
+			clog_debug("time elapsed: %.3lfms", (current_time - previous_time) * 1000.0f);
 #endif
 			update_game(&game);
 			previous_time = current_time;

@@ -1,3 +1,6 @@
 [submodule "thirdparty/raylib"]
 	path = thirdparty/raylib
 	url = https://github.com/raysan5/raylib.git
+[submodule "thirdparty/clog"]
+	path = thirdparty/clog
+	url = git@github.com:GustavoFeio/clog.git

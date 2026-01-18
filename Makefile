@@ -1,12 +1,13 @@
 
 CC = cc
 
-SRC = ./src
+SRC    = ./src
 RAYLIB = ./thirdparty/raylib
+CLOG   = ./thirdparty/clog
 
 FLAGS = -g -Wall -Wextra
-INCLUDES = -I$(RAYLIB)/src
-LINKS = -L$(RAYLIB)/src
+INCLUDES = -I$(RAYLIB)/src -I$(CLOG)/lib
+LINKS = -L$(RAYLIB)/src -L$(CLOG)/lib
 LIBS = -l:libraylib.a -lm
 
 EXE       = cnake_game
