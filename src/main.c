@@ -1,4 +1,3 @@
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -16,12 +15,11 @@
 
 // TODO: add debug menu to adjust all debug related stuff in the game
 // instead of defining macros and recompiling
-#if 0
-#define CNAKE_DEBUG
+#ifdef CNAKE_DEBUG
 #define CNAKE_TRANSPARENT 0.5f
 #define CNAKE_GRID
 #define CNAKE_CALLS
-#endif
+#endif // CNAKE_DEBUG
 
 #ifdef CNAKE_CALLS
 size_t draws;
@@ -372,6 +370,8 @@ bool intersects_snake(Snake *snake, Vec2 rect)
 	return false;
 }
 
+// TODO: reuse apple instead of reallocating another one
+// TODO: multiple apples after certain score
 Apple new_apple(Scene *scene)
 {
 	Apple apple;
@@ -632,4 +632,3 @@ int main(void)
 	free_game(&game);
 	return 0;
 }
-
